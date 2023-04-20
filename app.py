@@ -38,7 +38,9 @@ def index():
         try:
             response = queue.send_message(MessageBody=ip_address)
         except Exception as e:
-            return render_template("index.html", error=f"Error pushing IP to SQS queue: {e}")
+            return render_template(
+                "index.html", error=f"Error pushing IP to SQS queue: {e}"
+            )
         return render_template("index.html", success=True)
     return render_template("index.html", success=None)
 
@@ -74,7 +76,6 @@ def run_probe(ip_address):
                     print(f"{hop.distance}    {hop.address}    {hop.avg_rtt} ms")
 
                 last_distance = hop.distance
-
 
             host_data = {
                 "address": host.address,
@@ -194,4 +195,4 @@ def api_probes():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
