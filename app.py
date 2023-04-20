@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
-import os
+import os, ipinfo
 from icmplib import ping, multiping, traceroute, resolve
 from statistics import pstdev
 
@@ -39,17 +39,19 @@ def run_probe(ip_address):
             last_distance = 0
 
             for hop in hops:
-                print(f'{hop.distance}    {hop.address}    {hop.avg_rtt} ms')
                 traceroute_data.append(
                     {
-                        "distance": hop.distance,
+                        "distance": float(hop.distance),
                         "address": hop.address,
-                        "avg_rtt": hop.avg_rtt,
-                        "packet_loss": host.packet_loss,
-                        "packets_sent": hop.packets_sent,
-                        "packets_received": hop.packets_received,
+                        "avg_rtt": float(hop.avg_rtt),
+                        "packet_loss": float(host.packet_loss),
+                        "packets_sent": float(hop.packets_sent),
+                        "packets_received": float(hop.packets_received),
                     }
                 )
+                print(
+                    f"Current traceroute_data: {traceroute_data}"
+                )  # Add this line to debug
 
                 if last_distance + 1 != hop.distance:
                     print("Some gateways are not responding")
@@ -58,21 +60,21 @@ def run_probe(ip_address):
                 last_distance = hop.distance
 
             rtt_values = [host.min_rtt, host.max_rtt, host.avg_rtt]
-            rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0
+            rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0.0
 
             host_data = {
                 "address": host.address,
-                "rtt_min": host.min_rtt,
-                "rtt_max": host.max_rtt,
-                "rtt_avg": host.avg_rtt,
-                "rtt_std_dev": rtt_std_dev,
-                "packet_loss": host.packet_loss,
-                "jitter": host.jitter,
-                "packets_sent": host.packets_sent,
-                "packets_received": host.packets_received,
+                "rtt_min": float(host.min_rtt),
+                "rtt_max": float(host.max_rtt),
+                "rtt_avg": float(host.avg_rtt),
+                "rtt_std_dev": float(rtt_std_dev),
+                "packet_loss": float(host.packet_loss),
+                "jitter": float(host.jitter),
+                "packets_sent": float(host.packets_sent),
+                "packets_received": float(host.packets_received),
             }
 
-            probe_location = get_probe_location(ip_address)
+            probe_location = get_probe_location()
 
             probe_data = {
                 "host": host_data,
@@ -84,19 +86,22 @@ def run_probe(ip_address):
             print(f"Probe data stored in database: {probe_data}")
         else:
             print(f"{host.address} is down!")
-            
+
     except Exception as e:
         print(f"Error during probe: {e}")
 
 
-def get_probe_location(pIp):
-    # TODO: Implement function to get IP address location
+def get_probe_location():
+    access_token = os.environ.get("IPInfoToken")
+    handler = ipinfo.getHandler(access_token)
+    details = handler.getDetails()
+
     return {
-        "latitude": 49.2827,
-        "longitude": -123.1207,
-        "city": "Vancouver",
-        "region_name": "British Columbia",
-        "country_name": "Canada",
+        "latitude": details.latitude,
+        "longitude": details.longitude,
+        "city": details.city,
+        "region_name": details.region,
+        "country_name": details.country_name,
     }
 
 
@@ -107,6 +112,24 @@ def data():
         return render_template("data.html", probe_data=probe_data)
     except Exception as e:
         return render_template("data.html", error=f"Error retrieving data: {e}")
+
+
+@app.route("/map", methods=["GET"])
+def map():
+    return render_template("map.html")
+
+
+@app.route("/api/probes", methods=["GET"])
+def api_probes():
+    try:
+        probe_data = list(
+            probes_collection.find(
+                {}, {"_id": 0, "host.address": 1, "probe_location": 1, "traceroute": 1}
+            )
+        )
+        return jsonify(probe_data)
+    except Exception as e:
+        return jsonify({"error": f"Error retrieving data: {e}"})
 
 
 if __name__ == "__main__":

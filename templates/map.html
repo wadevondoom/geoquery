@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Geolocation Map</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container">
+            <a class="navbar-brand" href="#">Geo-Locality Probe</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/data">Data</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/map">Map</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container mt-5">
+    <div id="map" style="width: 100%; height: 100vh;"></div>
+    </div>
+    <script>
+        // Initialize the map
+        const map = L.map("map").setView([0, 0], 2); // Set the initial view to show the entire world
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Fetch the probe data and add it to the map
+        fetch("/api/probes")
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(probe => {
+                    // Plot the probe location
+                    const probeLatLng = L.latLng(probe.probe_location.latitude, probe.probe_location.longitude);
+                    L.marker(probeLatLng).addTo(map).bindPopup(`Probe location: ${probe.probe_location.city}, ${probe.probe_location.region_name}, ${probe.probe_location.country_name}`);
+
+                    // Plot the traceroute data
+                    probe.traceroute.forEach(hop => {
+                        if (hop.address) {
+                            // Use an external service like ip-api.com to fetch the location for the current hop IP address
+                            fetch(`http://ip-api.com/json/${hop.address}`)
+                                .then(response => response.json())
+                                .then(location => {
+                                    if (location.status === "success") {
+                                        const hopLatLng = L.latLng(location.lat, location.lon);
+                                        // Add a marker for the hop location on the map
+                                        L.marker(hopLatLng).addTo(map).bindPopup(
+                                            `Hop ${hop.distance} - ${hop.address}<br>Avg RTT: ${hop.avg_rtt} ms<br>Packet Loss: ${hop.packet_loss}%`
+                                        );
+
+                                        // Add a polyline between the probe location and the hop location
+                                        L.polyline([probeLatLng, hopLatLng], {color: 'red'}).addTo(map);
+                                    } else {
+                                        console.log(`Error fetching location for IP address: ${hop.address}`);
+                                    }
+                                })
+                                .catch(error => {
+                                    console.log(`Error fetching location data: ${error}`);
+                                });
+                        }
+                    });
+                });
+            })
+            .catch(error => {
+                console.log(`Error fetching probe data: ${error}`);
+            });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+</body>
+</html>
