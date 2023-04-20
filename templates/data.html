@@ -81,6 +81,8 @@
                                             <th scope="col">Distance</th>
                                             <th scope="col">IP</th>
                                             <th scope="col">Avg RTT (ms)</th>
+                                            <th scope="col">Packets Sent</th>
+                                            <th scope="col">Packets Received</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -89,6 +91,8 @@
                                             <th scope="row">{{ hop['distance'] }}</th>
                                             <td>{{ hop['address'] }}</td>
                                             <td>{{ hop['avg_rtt'] }} ms</td>
+                                            <td>{{ hop['packets_sent'] }}</td>
+                                            <td>{{ hop['packets_received'] }}</td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
