@@ -38,7 +38,7 @@ def run_probe(ip_address):
             print(f"{host.address} is down!")
 
         hops = traceroute(
-            ip_address, count=2, interval=0.05, timeout=2, first_hop=1, max_hops=30
+            ip_address, count=5, interval=0.05, timeout=2, first_hop=1, max_hops=30
         )
         traceroute_data = []
         last_distance = 0
@@ -49,6 +49,9 @@ def run_probe(ip_address):
                     "distance": hop.distance,
                     "address": hop.address,
                     "avg_rtt": hop.avg_rtt,
+                    "min_rtt": hop.min_rtt,
+                    "packets_sent": hop.packets_sent,
+                    "packets_received": hop.packets_received,
                 }
             )
 
@@ -68,6 +71,7 @@ def run_probe(ip_address):
             "rtt_avg": host.avg_rtt,
             "rtt_std_dev": rtt_std_dev,
             "packet_loss": host.packet_loss,
+            "jitter": host.jitter,
         }
 
         probe_location = get_probe_location(ip_address)
