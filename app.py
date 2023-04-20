@@ -3,7 +3,6 @@ from pymongo import MongoClient
 import os, ipinfo, boto3
 
 from icmplib import ping, multiping, traceroute, resolve
-from statistics import pstdev
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -76,15 +75,12 @@ def run_probe(ip_address):
 
                 last_distance = hop.distance
 
-            rtt_values = [host.min_rtt, host.max_rtt, host.avg_rtt]
-            rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0.0
 
             host_data = {
                 "address": host.address,
                 "rtt_min": float(host.min_rtt),
                 "rtt_max": float(host.max_rtt),
                 "rtt_avg": float(host.avg_rtt),
-                "rtt_std_dev": float(rtt_std_dev),
                 "packet_loss": float(host.packet_loss),
                 "jitter": float(host.jitter),
                 "packets_sent": float(host.packets_sent),
