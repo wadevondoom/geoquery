@@ -11,19 +11,19 @@ client = MongoClient(db_conn)
 db = client["geo_locality_db"]
 probes_collection = db["probes"]
 
-aws_access_key_id = os.environ.get("aws_access_key_id")
-aws_secret_access_key = os.environ.get("aws_secret_access_key")
-aws_region = os.environ.get("aws_region")
-aws_sqs_queue_name = os.environ.get("aws_sqs_queue_name")
+aws_access_key = os.environ.get("AWS_ACCESS_KEY")
+aws_secret_key = os.environ.get("AWS_SECRET_KEY")
+aws_region = os.environ.get("AWS_REGION")
+aws_sqs_queue = os.environ.get("AWS_SQS_QUEUE")
 
 sqs = boto3.resource(
     "sqs",
-    aws_access_key_id=aws_access_key_id,
-    aws_secret_access_key=aws_secret_access_key,
+    aws_access_key_id=aws_access_key,
+    aws_secret_access_key=aws_secret_key,
     region_name=aws_region,
 )
 
-queue = sqs.get_queue_by_name(QueueName=aws_sqs_queue_name)
+queue = sqs.get_queue_by_name(QueueName=aws_sqs_queue)
 
 app = Flask(__name__)
 
