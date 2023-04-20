@@ -1,29 +1,13 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
-import os, ipinfo, boto3
-
+import os, ipinfo
 from icmplib import ping, multiping, traceroute, resolve
-import numpy as np
-import matplotlib.pyplot as plt
+from statistics import pstdev
 
 db_conn = os.environ.get("DBCONN")
 client = MongoClient(db_conn)
 db = client["geo_locality_db"]
 probes_collection = db["probes"]
-
-aws_access_key = os.environ.get("AWS_ACCESS_KEY")
-aws_secret_key = os.environ.get("AWS_SECRET_KEY")
-aws_region = os.environ.get("AWS_REGION")
-aws_sqs_queue = os.environ.get("AWS_SQS_QUEUE")
-
-sqs = boto3.resource(
-    "sqs",
-    aws_access_key_id=aws_access_key,
-    aws_secret_access_key=aws_secret_key,
-    region_name=aws_region,
-)
-
-queue = sqs.get_queue_by_name(QueueName=aws_sqs_queue)
 
 app = Flask(__name__)
 
@@ -34,13 +18,11 @@ def index():
         ip_address = request.form.get("ip_address")
         if not ip_address:
             return render_template("index.html", error="IP address cannot be empty.")
-        # Push the IP address to the SQS queue
+        # Run the probe and store the results in the database
         try:
-            response = queue.send_message(MessageBody=ip_address)
+            run_probe(ip_address)
         except Exception as e:
-            return render_template(
-                "index.html", error=f"Error pushing IP to SQS queue: {e}"
-            )
+            return render_template("index.html", error=f"Error running probe: {e}")
         return render_template("index.html", success=True)
     return render_template("index.html", success=None)
 
@@ -77,11 +59,15 @@ def run_probe(ip_address):
 
                 last_distance = hop.distance
 
+            rtt_values = [host.min_rtt, host.max_rtt, host.avg_rtt]
+            rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0.0
+
             host_data = {
                 "address": host.address,
                 "rtt_min": float(host.min_rtt),
                 "rtt_max": float(host.max_rtt),
                 "rtt_avg": float(host.avg_rtt),
+                "rtt_std_dev": float(rtt_std_dev),
                 "packet_loss": float(host.packet_loss),
                 "jitter": float(host.jitter),
                 "packets_sent": float(host.packets_sent),
@@ -119,59 +105,6 @@ def get_probe_location():
     }
 
 
-def create_rtt_histogram():
-    # Fetch all probe data from the database
-    probes = probes_collection.find()
-
-    # Extract the average RTT values for all traceroute hops
-    avg_rtt_values = [hop["avg_rtt"] for probe in probes for hop in probe["traceroute"]]
-
-    # Create a histogram
-    plt.hist(avg_rtt_values, bins="auto", alpha=0.7, rwidth=0.85)
-    plt.xlabel("Average RTT (ms)")
-    plt.ylabel("Frequency")
-    plt.title("Histogram of Average RTT Values")
-
-    # Save the histogram as a PNG file
-    plt.savefig("static/images/rtt_histogram.png")
-
-
-@app.route("/rtt_histogram")
-def rtt_histogram():
-    create_rtt_histogram()
-    return render_template("rtt_histogram.html")
-
-
-@app.route("/geo_visualizations")
-def geo_visualizations():
-    # Create histogram of distances
-    probes = probes_collection.find()
-    distances = [hop["distance"] for probe in probes for hop in probe["traceroute"]]
-    plt.hist(distances, bins="auto", alpha=0.7, rwidth=0.85)
-    plt.xlabel("Distance (hops)")
-    plt.ylabel("Frequency")
-    plt.title("Histogram of Traceroute Distances")
-
-    # Create histogram of max RTT
-    plt.figure()
-    max_rtts = [probe["host"]["rtt_max"] for probe in probes]
-    plt.hist(max_rtts, bins="auto", alpha=0.7, rwidth=0.85)
-    plt.xlabel("Max RTT (ms)")
-    plt.ylabel("Frequency")
-    plt.title("Histogram of Max RTT Values")
-
-    # Save both histograms as PNG files
-    plt.savefig("static/images/distance_histogram.png")
-    plt.savefig("static/images/max_rtt_histogram.png")
-
-    return render_template("geoviz.html")
-
-
-@app.route("/map", methods=["GET"])
-def map():
-    return render_template("map.html")
-
-
 @app.route("/data", methods=["GET"])
 def data():
     try:
@@ -179,6 +112,11 @@ def data():
         return render_template("data.html", probe_data=probe_data)
     except Exception as e:
         return render_template("data.html", error=f"Error retrieving data: {e}")
+
+
+@app.route("/map", methods=["GET"])
+def map():
+    return render_template("map.html")
 
 
 @app.route("/api/probes", methods=["GET"])
