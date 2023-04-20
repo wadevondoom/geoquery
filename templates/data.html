@@ -41,6 +41,7 @@
                     <th scope="col">Avg RTT</th>
                     <th scope="col">Std Dev RTT</th>
                     <th scope="col">Packet Loss</th>
+                    <th scope="col">Jitter</th>
                     <th scope="col">Traceroute</th>
                     <th scope="col">Location</th>
                 </tr>
@@ -54,6 +55,7 @@
                     <td>{{ data['host']['rtt_avg'] }} ms</td>
                     <td>{{ data['host']['rtt_std_dev'] }} ms</td>
                     <td>{{ data['host']['packet_loss'] }}%</td>
+                    <td>{{ data['host']['jitter'] }}%</td>
                     <td>
                         <button class="btn btn-primary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#traceroute-{{ loop.index }}" aria-expanded="false"
