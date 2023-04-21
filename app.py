@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
 import os, ipinfo
 from icmplib import traceroute
-from pythonping import ping as pping
+from ping3 import ping as pping
 from statistics import pstdev
 
 db_conn = os.environ.get("DBCONN")
