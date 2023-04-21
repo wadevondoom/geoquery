@@ -9,13 +9,13 @@
   tasks:
     - name: Create application user
       ansible.builtin.user:
-        name: "{{ app_user }}"
+        name: "appuser"
         shell: /bin/bash
         state: present
 
     - name: Set up authorized keys for the application user
       ansible.builtin.authorized_key:
-        user: "{{ app_user }}"
+        user: "appuser"
         state: present
         key: "{{ lookup('file', '/home/wade/.ssh/id_rsa.pub') }}"
 
@@ -48,11 +48,11 @@
     - name: Clone Flask app repository
       git:
         repo: https://github.com/wadevondoom/geoquery
-        dest: /home/{{ app_user }}/geoquery
+        dest: /home/appuser/geoquery
 
     - name: Install Flask app requirements
       pip:
-        requirements: /home/{{ app_user }}/geoquery/requirements.txt
+        requirements: /home/appuser/geoquery/requirements.txt
         state: present
         executable: pip3
 
@@ -64,11 +64,11 @@
           After=network.target
 
           [Service]
-          User={{ app_user }}
+          User=appuser
           Group=www-data
           WorkingDirectory=/home/appuser/geoquery/
           Environment="PATH=/home/.local/bin"
-          ExecStart=/home/appuser/.local/bin/gunicorn --workers 3 --bind unix:/home/appuser/geoquery/gunicorn.sock geoquery:app
+          ExecStart=/usr/local/bin/gunicorn --workers 3 --bind unix:/home/appuser/geoquery/gunicorn.sock geoquery:app
 
           [Install]
           WantedBy=multi-user.target
@@ -85,7 +85,7 @@
         content: |
           server {
               listen 80;
-              server_name 165.227.206.113;
+              server_name 165.232.66.223;
 
               location / {
                   include proxy_params;
