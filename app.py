@@ -83,7 +83,6 @@ def run_probe(ip_address):
         probes_collection.insert_one(probe_data)
         print(f"Probe data stored in database: {probe_data}")
 
-
     except Exception as e:
         print(f"Error during probe: {e}")
 
@@ -100,6 +99,16 @@ def get_probe_location():
         "region_name": details.region,
         "country_name": details.country_name,
     }
+
+
+@app.route("/probe_info", methods=["GET"])
+def probe_info():
+    try:
+        location = get_probe_location()
+    except Exception as e:
+        return render_template("/probe_info.html")
+
+    return render_template("/probe_info.html", location=location)
 
 
 @app.route("/data", methods=["GET"])
