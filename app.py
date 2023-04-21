@@ -30,7 +30,13 @@ def index():
 
 def run_probe(ip_address):
     try:
-        host = pping(ip_address, count=4, interval=1, timeout=2)
+        ping_results = [pping(ip_address, timeout=2) for _ in range(4)]
+        host = {
+            "address": ip_address,
+            "min_rtt": min(ping_results),
+            "max_rtt": max(ping_results),
+            "avg_rtt": sum(ping_results) / len(ping_results),
+        }
 
         hops = traceroute(ip_address)
         traceroute_data = []
@@ -57,14 +63,14 @@ def run_probe(ip_address):
 
             last_distance = hop.distance
 
-        rtt_values = [host.min_rtt, host.max_rtt, host.avg_rtt]
+        rtt_values = [host["min_rtt"], host["max_rtt"], host["avg_rtt"]]
         rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0.0
 
         host_data = {
-            "address": host.address,
-            "rtt_min": float(host.min_rtt),
-            "rtt_max": float(host.max_rtt),
-            "rtt_avg": float(host.avg_rtt),
+            "address": host["address"],
+            "rtt_min": float(host["min_rtt"]),
+            "rtt_max": float(host["max_rtt"]),
+            "rtt_avg": float(host["avg_rtt"]),
             "rtt_std_dev": float(rtt_std_dev),
             "packet_loss": float(host.packet_loss),
             "jitter": float(host.jitter),
