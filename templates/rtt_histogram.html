@@ -1,13 +1,7 @@
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RTT Histogram</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block content %}
     <h1>Histogram of Average RTT Values</h1>
     <img src="{{ url_for('static', filename='images/rtt_histogram.png') }}" alt="RTT Histogram">
-</body>
-</html>
+{% endblock %}

@@ -113,16 +113,6 @@ def get_probe_location():
     }
 
 
-@app.route("/probe_info", methods=["GET"])
-def probe_info():
-    try:
-        location = get_probe_location()
-    except Exception as e:
-        return render_template("/probe_info.html")
-
-    return render_template("/probe_info.html", location=location)
-
-
 @app.route("/data", methods=["GET"])
 def data():
     try:
