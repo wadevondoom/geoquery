@@ -7,12 +7,18 @@
     app_user: appuser
 
   tasks:
-      - name: Create application user
+    - name: Create application user
       ansible.builtin.user:
         name: "{{ app_user }}"
         shell: /bin/bash
         state: present
-        
+
+    - name: Set up authorized keys for the application user
+      ansible.builtin.authorized_key:
+        user: "{{ app_user }}"
+        state: present
+        key: "{{ lookup('file', '/home/wade/.ssh/id_rsa.pub') }}"
+
     - name: Update and upgrade packages
       apt:
         update_cache: yes
@@ -26,6 +32,11 @@
           - nginx
         state: present
 
+    - name: Install git
+      apt:
+        pkg: git
+        state: present
+
     - name: Install Gunicorn and Flask
       pip:
         name:
@@ -36,12 +47,12 @@
 
     - name: Clone Flask app repository
       git:
-        repo: <your_repository>
-        dest: /home/<your_ssh_user>/<your_repository_folder>
+        repo: https://github.com/wadevondoom/geoquery
+        dest: /home/{{ app_user }}/geoquery
 
     - name: Install Flask app requirements
       pip:
-        requirements: /home/<your_ssh_user>/<your_repository_folder>/requirements.txt
+        requirements: /home/{{ app_user }}/geoquery/requirements.txt
         state: present
         executable: pip3
 
@@ -53,11 +64,11 @@
           After=network.target
 
           [Service]
-          User=<your_ssh_user>
+          User={{ app_user }}
           Group=www-data
-          WorkingDirectory=/home/<your_ssh_user>/<your_repository_folder>
-          Environment="PATH=/home/<your_ssh_user>/.local/bin"
-          ExecStart=/home/<your_ssh_user>/.local/bin/gunicorn --workers 3 --bind unix:/home/<your_ssh_user>/<your_repository_folder>/gunicorn.sock <your_flask_app>:app
+          WorkingDirectory=/home/{{ app_user }}/app/geoquery/
+          Environment="PATH=/home/{{ app_user }}/.local/bin"
+          ExecStart=/home/{{ app_user }}/.local/bin/gunicorn --workers 3 --bind unix:/home/{{ app_user }}/geoquery/gunicorn.sock geoquery:app
 
           [Install]
           WantedBy=multi-user.target
@@ -78,15 +89,15 @@
 
               location / {
                   include proxy_params;
-                  proxy_pass http://unix:/home/<your_ssh_user>/<your_repository_folder>/gunicorn.sock;
+                  proxy_pass http://unix:/home/{{ app_user }}/app/geoquery/gunicorn.sock;
               }
           }
-        dest: /etc/nginx/sites-available/<your_flask_app>
+        dest: /etc/nginx/sites-available/geoquery
 
     - name: Create a symbolic link to the Nginx configuration file
       ansible.builtin.file:
-        src: /etc/nginx/sites-available/<your_flask_app>
-        dest: /etc/nginx/sites-enabled/<your_flask_app>
+        src: /etc/nginx/sites-available/geoquery
+        dest: /etc/nginx/sites-enabled/geoquery
         state: link
 
     - name: Test Nginx configuration
@@ -99,6 +110,11 @@
         name: nginx
         state: restarted
       when: nginx_test_result.stdout.find('successful') != -1
+
+    - name: Install ufw
+      apt:
+        pkg: ufw
+        state: present
 
     - name: Allow HTTP traffic
       ansible.builtin.ufw:
