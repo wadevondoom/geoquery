@@ -66,9 +66,9 @@
           [Service]
           User={{ app_user }}
           Group=www-data
-          WorkingDirectory=/home/{{ app_user }}/app/geoquery/
-          Environment="PATH=/home/{{ app_user }}/.local/bin"
-          ExecStart=/home/{{ app_user }}/.local/bin/gunicorn --workers 3 --bind unix:/home/{{ app_user }}/geoquery/gunicorn.sock geoquery:app
+          WorkingDirectory=/home/appuser/geoquery/
+          Environment="PATH=/home/.local/bin"
+          ExecStart=/home/appuser/.local/bin/gunicorn --workers 3 --bind unix:/home/appuser/geoquery/gunicorn.sock geoquery:app
 
           [Install]
           WantedBy=multi-user.target
@@ -85,11 +85,11 @@
         content: |
           server {
               listen 80;
-              server_name <your_domain_or_IP>;
+              server_name 165.227.206.113;
 
               location / {
                   include proxy_params;
-                  proxy_pass http://unix:/home/{{ app_user }}/app/geoquery/gunicorn.sock;
+                  proxy_pass http://unix:/home/appuser/app/geoquery/gunicorn.sock;
               }
           }
         dest: /etc/nginx/sites-available/geoquery
