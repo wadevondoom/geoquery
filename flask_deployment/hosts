@@ -1,2 +1,4 @@
 [droplet]
 165.232.66.223 ansible_user=root
+167.99.8.90 ansible_user=root  
+159.203.30.235 ansible_user=root

@@ -13,11 +13,20 @@
         shell: /bin/bash
         state: present
 
-    - name: Set up authorized keys for the application user
-      ansible.builtin.authorized_key:
-        user: "appuser"
-        state: present
-        key: "{{ lookup('file', '/home/wade/.ssh/id_rsa.pub') }}"
+    - name: Set environment variables for appuser
+      ansible.builtin.lineinfile:
+        path: /home/appuser/.bashrc
+        line: "export {{ item.name }}={{ item.value }}"
+        create: yes
+      loop:
+        - name: DBCONN
+          value: "mongodb+srv://sb_user:M3VheMVbEzMEqDln@cluster0.dtfe8lw.mongodb.net/?retryWrites=true&w=majority"
+        - name: IPInfoToken
+          value: 628aaf349fa762
+        - name: OPENAI_SECRET
+          value: "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"
+      become_user: appuser
+ 
 
     - name: Update and upgrade packages
       apt:
@@ -37,24 +46,59 @@
         pkg: git
         state: present
 
-    - name: Install Gunicorn and Flask
+    - name: Install python3-virtualenv
+      apt:
+        pkg:
+          - python3-virtualenv
+        state: present
+
+    - name: Create virtual environment for appuser
+      become_user: appuser
+      ansible.builtin.command: python3 -m venv /home/appuser/venv
+      args:
+        creates: /home/appuser/venv
+
+    - name: Install Gunicorn and Flask in virtual environment
+      become_user: appuser
       pip:
         name:
           - gunicorn
           - Flask
         state: present
-        executable: pip3
+        virtualenv: /home/appuser/venv
+
+    - name: Grant CAP_NET_RAW capability to the system-wide Python interpreter
+      ansible.builtin.command: setcap cap_net_raw+ep /usr/bin/python3.10
+
 
     - name: Clone Flask app repository
       git:
         repo: https://github.com/wadevondoom/geoquery
         dest: /home/appuser/geoquery
+      become_user: appuser
+
 
     - name: Install Flask app requirements
       pip:
         requirements: /home/appuser/geoquery/requirements.txt
         state: present
-        executable: pip3
+        virtualenv: /home/appuser/venv
+
+
+    - name: Create directory for gunicorn.sock file
+      ansible.builtin.file:
+        path: /home/appuser/gunicorn_socks
+        state: directory
+        owner: appuser
+        group: www-data
+        mode: '0750'
+
+    - name: Change ownership of the geoquery directory
+      ansible.builtin.file:
+        path: /home/appuser/geoquery
+        owner: appuser
+        group: appuser
+        recurse: yes
 
     - name: Create Gunicorn systemd service file
       ansible.builtin.copy:
@@ -67,8 +111,11 @@
           User=appuser
           Group=www-data
           WorkingDirectory=/home/appuser/geoquery/
-          Environment="PATH=/home/.local/bin"
-          ExecStart=/usr/local/bin/gunicorn --workers 3 --bind unix:/home/appuser/geoquery/gunicorn.sock geoquery:app
+          Environment="PATH=/home/appuser/.local/bin"
+          Environment="DBCONN=mongodb+srv://sb_user:M3VheMVbEzMEqDln@cluster0.dtfe8lw.mongodb.net/?retryWrites=true&w=majority"
+          Environment="IPInfoToken=628aaf349fa762"
+          Environment="OPENAI_SECRET=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"
+          ExecStart=/home/appuser/venv/bin/gunicorn --workers 3 --bind unix:/home/appuser/gunicorn_socks/geoquery.sock app:app
 
           [Install]
           WantedBy=multi-user.target
@@ -89,7 +136,7 @@
 
               location / {
                   include proxy_params;
-                  proxy_pass http://unix:/home/appuser/app/geoquery/gunicorn.sock;
+                  proxy_pass http://unix:/home/appuser/gunicorn_socks/gunicorn.sock;
               }
           }
         dest: /etc/nginx/sites-available/geoquery
