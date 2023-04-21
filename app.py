@@ -31,11 +31,15 @@ def index():
 def run_probe(ip_address):
     try:
         ping_results = [pping(ip_address, timeout=2) for _ in range(4)]
+        valid_results = list(filter(None, ping_results))
+
         host = {
             "address": ip_address,
-            "min_rtt": min(ping_results),
-            "max_rtt": max(ping_results),
-            "avg_rtt": sum(ping_results) / len(ping_results),
+            "min_rtt": min(valid_results) if valid_results else None,
+            "max_rtt": max(valid_results) if valid_results else None,
+            "avg_rtt": sum(valid_results) / len(valid_results)
+            if valid_results
+            else None,
         }
 
         hops = traceroute(ip_address)
@@ -63,14 +67,16 @@ def run_probe(ip_address):
 
             last_distance = hop.distance
 
-        rtt_values = [host["min_rtt"], host["max_rtt"], host["avg_rtt"]]
+        rtt_values = list(
+            filter(None, [host["min_rtt"], host["max_rtt"], host["avg_rtt"]])
+        )
         rtt_std_dev = pstdev(rtt_values) if len(rtt_values) >= 2 else 0.0
 
         host_data = {
             "address": host["address"],
-            "rtt_min": float(host["min_rtt"]),
-            "rtt_max": float(host["max_rtt"]),
-            "rtt_avg": float(host["avg_rtt"]),
+            "rtt_min": float(host["min_rtt"]) if host["min_rtt"] is not None else None,
+            "rtt_max": float(host["max_rtt"]) if host["max_rtt"] is not None else None,
+            "rtt_avg": float(host["avg_rtt"]) if host["avg_rtt"] is not None else None,
             "rtt_std_dev": float(rtt_std_dev),
             "packet_loss": float(host.packet_loss),
             "jitter": float(host.jitter),
