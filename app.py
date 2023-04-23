@@ -1,9 +1,10 @@
 from flask import Flask, render_template, request, jsonify
 from pymongo import MongoClient
-import os, ipinfo
+import os, ipinfo, sys
 from icmplib import traceroute
 from ping3 import ping as pping
 from statistics import pstdev
+import logging
 
 db_conn = os.environ.get("DBCONN")
 client = MongoClient(db_conn)
@@ -150,5 +151,3 @@ def api_probes():
         return jsonify({"error": f"Error retrieving data: {e}"})
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
